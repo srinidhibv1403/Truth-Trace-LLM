@@ -6,7 +6,7 @@ It combines intelligent information retrieval, structured knowledge bases, multi
 ---
 
 ## 🚀 Live Demo
-🔗 **[Try it Now → TruthTrace-LLM Web App](https://truthtrace-llm-aa8ehtudvwvspzlqbqx2kg.streamlit.app/)**  
+🔗 **[Try it Now → TruthTrace-LLM Web App](https://truth-trace-llm.streamlit.app/)**  
 
 ---
 
