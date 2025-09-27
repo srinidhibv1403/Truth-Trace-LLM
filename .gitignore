@@ -1,0 +1,23 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment folder
+.venv/
+env/
+venv/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables / secrets
+*.env
+
+# Streamlit generated files
+.streamlit/
+
+# Any API keys or credential files
+secrets.json
