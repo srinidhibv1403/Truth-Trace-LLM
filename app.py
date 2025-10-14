@@ -1,27 +1,24 @@
 import streamlit as st
-from azure.ai.inference import ChatCompletionsClient
-from azure.ai.inference.models import SystemMessage, UserMessage
-from azure.core.credentials import AzureKeyCredential
+from openai import AzureOpenAI
 import requests
 import re
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
 
-# Securely load keys and endpoint from environment variables
-AZURE_ENDPOINT = os.getenv("AZURE_ENDPOINT")
-MODEL_NAME = os.getenv("MODEL_NAME")
-AZURE_API_KEY = os.getenv("AZURE_API_KEY")
+# Azure OpenAI Configuration
+client = AzureOpenAI(
+    api_key=os.getenv("AZURE_OPENAI_KEY"),
+    api_version="2024-02-15-preview",
+    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+)
+
+DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4")
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-
-client = ChatCompletionsClient(
-    endpoint=AZURE_ENDPOINT,
-    credential=AzureKeyCredential(AZURE_API_KEY),
-)
 
 def extract_main_keyword(claim):
     splitters = [' who ', ' that ', ' which ', ' is ', ' has ',
@@ -142,7 +139,7 @@ def search_youtube_videos(query, max_results=3):
         st.error(f"Failed to fetch YouTube videos: {e}")
     return videos
 
-def ask_deepseek_with_sources_and_claim(claim, sources):
+def ask_openai_with_sources_and_claim(claim, sources):
     context = "\n\n".join([f"{s['title']}: {s['snippet']}" for s in sources]) if sources else "No sources available."
     prompt = (
         "Based strictly and only on the sources below, provide a clear, rewritten explanation for the claim "
@@ -152,27 +149,26 @@ def ask_deepseek_with_sources_and_claim(claim, sources):
         f"Sources:\n{context}\n\nClaim: {claim}"
     )
     try:
-        # CORRECTED: Use complete() instead of chat.completions.create()
-        resp = client.complete(
+        response = client.chat.completions.create(
+            model=DEPLOYMENT_NAME,
             messages=[
-                SystemMessage(content="You are TruthTrace, an AI fact-checking assistant. Always respond factually, neutrally, and in the requested format."),
-                UserMessage(content=prompt)
+                {"role": "system", "content": "You are TruthTrace, an AI fact-checking assistant. Always respond factually, neutrally, and in the requested format."},
+                {"role": "user", "content": prompt}
             ],
-            model=MODEL_NAME,  # Model name should be here
             max_tokens=800,
             temperature=0.2
         )
-        content = resp.choices[0].message.content.strip()
+        content = response.choices[0].message.content.strip()
         verdict_match = re.search(r"Verdict:\s*(REAL|FAKE|MISLEADING)", content, re.IGNORECASE)
         verdict = verdict_match.group(1).upper() if verdict_match else "UNKNOWN"
         return verdict, content
     except Exception as e:
-        st.error(f"Failed to get response from DeepSeek: {e}")
+        st.error(f"Failed to get response from Azure OpenAI: {e}")
         return None, None
 
 st.set_page_config(page_title="TruthTrace Fact Checker", page_icon="🔍")
 st.title("TruthTrace – AI Fact Checker with Sources, Images, Videos & Summary")
-st.caption("Powered by Serper, Wikipedia, Pixabay, YouTube Data API & Azure DeepSeek")
+st.caption("Powered by Serper, Wikipedia, Pixabay, YouTube Data API & Azure OpenAI")
 
 claim = st.text_input("Enter a claim to verify:")
 
@@ -183,6 +179,7 @@ if st.button("Verify"):
         keyword = extract_main_keyword(claim)
         st.write("🔍 Searching sources...")
         sources, serper_images = serper_search_with_top_sources_and_images(claim)
+        
         if sources:
             st.subheader("Top 4 Sources")
             for s in sources:
@@ -190,25 +187,41 @@ if st.button("Verify"):
                 st.write(s['snippet'])
         else:
             st.info("No relevant sources found.")
+        
         imgs = gather_images(keyword, serper_images, sources)
         if imgs:
             st.subheader("Related Images")
-            for i in imgs:
-                st.image(i, width=300)
+            cols = st.columns(3)
+            for idx, img_url in enumerate(imgs):
+                with cols[idx % 3]:
+                    st.image(img_url, width=200)
         else:
             st.info("No related images found.")
+        
         vids = search_youtube_videos(keyword)
         st.subheader("Related YouTube Videos")
         if vids:
             for v in vids:
-                st.image(v["thumbnail"], width=120)
-                st.markdown(f"[{v['title']}]({v['url']})")
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    st.image(v["thumbnail"], width=120)
+                with col2:
+                    st.markdown(f"[{v['title']}]({v['url']})")
         else:
             st.info("No related videos found.")
+        
         st.write("🔍 Fact-checking claim...")
-        verdict, explanation_content = ask_deepseek_with_sources_and_claim(claim, sources)
+        verdict, explanation_content = ask_openai_with_sources_and_claim(claim, sources)
+        
         if verdict and explanation_content:
-            st.markdown(f"**Final Verdict:** {verdict}")
+            # Color-code the verdict
+            if verdict == "REAL":
+                st.success(f"**Final Verdict:** ✅ {verdict}")
+            elif verdict == "FAKE":
+                st.error(f"**Final Verdict:** ❌ {verdict}")
+            else:
+                st.warning(f"**Final Verdict:** ⚠️ {verdict}")
+            
             st.write(explanation_content)
         else:
             st.error("Could not get fact-check result.")
