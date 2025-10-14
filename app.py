@@ -12,7 +12,8 @@ def get_openai_client():
     """Cache the OpenAI client to avoid recreating it"""
     return AzureOpenAI(
         api_key=st.secrets["AZURE_OPENAI_KEY"],
-        azure_endpoint=st.secrets["AZURE_OPENAI_ENDPOINT"]
+        azure_endpoint=st.secrets["AZURE_OPENAI_ENDPOINT"],
+        api_version="2024-02-15-preview"  # REQUIRED - this was missing!
     )
 
 client = get_openai_client()
@@ -309,4 +310,4 @@ if st.button("🔍 Verify Claim", type="primary", use_container_width=True):
 
 st.divider()
 st.caption("💡 **Tip:** Try claims like 'Earth is flat' or 'Water boils at 100°C' or recent news headlines")
-st.caption("⚙️ Configure your API keys in Streamlit Cloud → App Settings → Secrets")
+st.caption("⚙️ Configure your API keys in .streamlit/secrets.toml or Streamlit Cloud")
