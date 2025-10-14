@@ -2,31 +2,26 @@ import streamlit as st
 from openai import AzureOpenAI
 import requests
 import re
-import os
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
 
 # Streamlit page config MUST be first
 st.set_page_config(page_title="TruthTrace Fact Checker", page_icon="🔍", layout="wide")
 
-# Initialize Azure OpenAI client using environment variables
+# Initialize Azure OpenAI client using Streamlit secrets
 @st.cache_resource
 def get_openai_client():
     """Cache the OpenAI client to avoid recreating it"""
     return AzureOpenAI(
-        api_key=os.getenv("AZURE_OPENAI_KEY"),
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+        api_key=st.secrets["AZURE_OPENAI_KEY"],
+        azure_endpoint=st.secrets["AZURE_OPENAI_ENDPOINT"]
     )
 
 client = get_openai_client()
 
-# Load all other configuration from .env
-DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4")
-SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+# Load all configuration from Streamlit secrets
+DEPLOYMENT_NAME = st.secrets.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4")
+SERPER_API_KEY = st.secrets["SERPER_API_KEY"]
+PIXABAY_API_KEY = st.secrets["PIXABAY_API_KEY"]
+YOUTUBE_API_KEY = st.secrets["YOUTUBE_API_KEY"]
 
 def extract_main_keyword(claim):
     """Extract the main subject from the claim"""
@@ -203,24 +198,28 @@ with st.sidebar:
     st.write("**Configuration Status:**")
     
     # Check which APIs are configured
-    if SERPER_API_KEY:
-        st.success("✅ Serper API")
-    else:
+    try:
+        if st.secrets["SERPER_API_KEY"]:
+            st.success("✅ Serper API")
+    except:
         st.error("❌ Serper API missing")
     
-    if os.getenv("AZURE_OPENAI_KEY"):
-        st.success("✅ Azure OpenAI")
-    else:
+    try:
+        if st.secrets["AZURE_OPENAI_KEY"]:
+            st.success("✅ Azure OpenAI")
+    except:
         st.error("❌ Azure OpenAI missing")
     
-    if YOUTUBE_API_KEY:
-        st.success("✅ YouTube API")
-    else:
+    try:
+        if st.secrets["YOUTUBE_API_KEY"]:
+            st.success("✅ YouTube API")
+    except:
         st.warning("⚠️ YouTube API missing (optional)")
     
-    if PIXABAY_API_KEY:
-        st.success("✅ Pixabay API")
-    else:
+    try:
+        if st.secrets["PIXABAY_API_KEY"]:
+            st.success("✅ Pixabay API")
+    except:
         st.warning("⚠️ Pixabay API missing (optional)")
 
 claim = st.text_input("Enter a claim to verify:", placeholder="e.g., Virat Kohli to leave RCB")
@@ -310,4 +309,4 @@ if st.button("🔍 Verify Claim", type="primary", use_container_width=True):
 
 st.divider()
 st.caption("💡 **Tip:** Try claims like 'Earth is flat' or 'Water boils at 100°C' or recent news headlines")
-st.caption("⚙️ Make sure all API keys are configured in your `.env` file")
+st.caption("⚙️ Configure your API keys in Streamlit Cloud → App Settings → Secrets")
