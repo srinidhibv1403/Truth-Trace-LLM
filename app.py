@@ -21,7 +21,6 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 client = ChatCompletionsClient(
     endpoint=AZURE_ENDPOINT,
     credential=AzureKeyCredential(AZURE_API_KEY),
-    api_version="2024-05-01-preview",
 )
 
 def extract_main_keyword(claim):
@@ -153,12 +152,13 @@ def ask_deepseek_with_sources_and_claim(claim, sources):
         f"Sources:\n{context}\n\nClaim: {claim}"
     )
     try:
+        # CORRECTED: Use complete() instead of chat.completions.create()
         resp = client.complete(
-            model=MODEL_NAME,
             messages=[
                 SystemMessage(content="You are TruthTrace, an AI fact-checking assistant. Always respond factually, neutrally, and in the requested format."),
                 UserMessage(content=prompt)
             ],
+            model=MODEL_NAME,  # Model name should be here
             max_tokens=800,
             temperature=0.2
         )
